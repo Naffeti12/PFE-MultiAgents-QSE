@@ -1,0 +1,51 @@
+# ============================================================
+# Plateforme Multi-Agents QSE - Dependances Python
+# Conforme au CDC TBR.TIM.IA.S5/2025-2026
+#
+# Installation (PowerShell Windows) :
+#   pip install -r requirements.txt
+#
+# Ou avec l'environnement virtuel :
+#   python -m venv .venv
+#   .venv\Scripts\Activate.ps1
+#   pip install -r requirements.txt
+# ============================================================
+
+# ------------------------------------------------------------------
+# Acces QALITAS & HTTP
+# ------------------------------------------------------------------
+requests>=2.31.0
+
+# ------------------------------------------------------------------
+# Lecture fichiers Excel (.xlsx)
+# ------------------------------------------------------------------
+openpyxl>=3.1.2
+
+# ------------------------------------------------------------------
+# Extraction texte PDF (dashboard qualite)
+# ------------------------------------------------------------------
+pdfplumber>=0.10.3
+
+# ------------------------------------------------------------------
+# Orchestration multi-agents (LangGraph / LangChain)
+# ------------------------------------------------------------------
+langchain>=0.2.0
+langchain-core>=0.2.0
+langchain-community>=0.2.0
+langgraph>=0.1.0
+
+# LangChain pour Ollama (LLM local)
+langchain-ollama>=0.1.0
+
+# LangChain pour OpenAI (optionnel, si utilise)
+# langchain-openai>=0.1.0
+
+# ------------------------------------------------------------------
+# Utilitaires
+# ------------------------------------------------------------------
+python-dotenv>=1.0.0
+
+# ------------------------------------------------------------------
+# Analyse de donnees (requis par load_excel_data.py)
+# ------------------------------------------------------------------
+pandas>=2.0.0

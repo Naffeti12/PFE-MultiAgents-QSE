@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Environnement
+.env
+.env.local
+*.env
+
+# Output et cache
+output/
+*.json
+injection_cache.json
+logs/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Données sensibles
+donnees/clients/
+*.xlsx
+*.pdf
+
+# Rapport (binaires lourds)
+rapport/*.docx
+rapport/fig/*.png
+
+# Ollama local
+*.gguf
+*.bin
