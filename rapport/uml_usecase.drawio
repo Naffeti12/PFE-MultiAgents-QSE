@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+
+    <!-- Titre -->
+    <mxCell id="title" value="Diagramme de Cas d'Utilisation — Plateforme Multi-Agents QSE" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1;fontColor=#1A3A5C;" vertex="1" parent="1">
+      <mxGeometry x="100" y="20" width="970" height="30" as="geometry" />
+    </mxCell>
+
+    <!-- ====== SYSTEME BOUNDARY ====== -->
+    <mxCell id="sys" value="Système Multi-Agents QSE" style="swimlane;startSize=30;fontStyle=1;fontSize=11;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#1A3A5C;" vertex="1" parent="1">
+      <mxGeometry x="280" y="70" width="620" height="700" as="geometry" />
+    </mxCell>
+
+    <!-- ====== ACTEURS ====== -->
+    <!-- Responsable QSE -->
+    <mxCell id="acteur1" value="Responsable QSE" style="shape=mxgraph.uml.actor;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="200" width="50" height="80" as="geometry" />
+    </mxCell>
+
+    <!-- Plateforme QALITAS -->
+    <mxCell id="acteur2" value="Plateforme QALITAS&#xa;(API REST)" style="shape=mxgraph.uml.actor;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="450" width="50" height="80" as="geometry" />
+    </mxCell>
+
+    <!-- LLM Ollama -->
+    <mxCell id="acteur3" value="LLM Ollama&#xa;(llama3.2)" style="shape=mxgraph.uml.actor;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="970" y="320" width="50" height="80" as="geometry" />
+    </mxCell>
+
+    <!-- ====== CAS D'UTILISATION ====== -->
+    <!-- UC1 -->
+    <mxCell id="uc1" value="UC1 : Lancer le pipeline&#xa;multi-agents" style="ellipse;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="320" y="100" width="200" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- UC2 -->
+    <mxCell id="uc2" value="UC2 : Extraire les risques&#xa;et opportunités (Agent 1)" style="ellipse;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="320" y="200" width="200" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- UC3 -->
+    <mxCell id="uc3" value="UC3 : Réévaluer les scores&#xa;RPN (Agent 2)" style="ellipse;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="320" y="300" width="200" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- UC4 -->
+    <mxCell id="uc4" value="UC4 : Analyser les&#xa;opportunités (Agent 3)" style="ellipse;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="320" y="400" width="200" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- UC5 -->
+    <mxCell id="uc5" value="UC5 : Générer alertes &amp;&#xa;injecter actions (Agent 4)" style="ellipse;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="320" y="500" width="200" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- UC6 -->
+    <mxCell id="uc6" value="UC6 : Consulter le tableau&#xa;de bord des résultats" style="ellipse;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="320" y="600" width="200" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- UC7 -->
+    <mxCell id="uc7" value="UC7 : Enrichir analyse&#xa;LLM contextuelle" style="ellipse;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="600" y="300" width="200" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- UC8 -->
+    <mxCell id="uc8" value="UC8 : Valider et injecter&#xa;dans QALITAS" style="ellipse;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="600" y="450" width="200" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- UC9 -->
+    <mxCell id="uc9" value="UC9 : Dédupliquer actions&#xa;(cache SHA1)" style="ellipse;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="600" y="550" width="200" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- ====== ASSOCIATIONS ACTEUR → UC ====== -->
+    <mxCell id="e1" style="edgeStyle=none;" edge="1" source="acteur1" target="uc1" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e2" style="edgeStyle=none;" edge="1" source="acteur1" target="uc2" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e3" style="edgeStyle=none;" edge="1" source="acteur1" target="uc6" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e4" style="edgeStyle=none;" edge="1" source="acteur2" target="uc2" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e5" style="edgeStyle=none;" edge="1" source="acteur2" target="uc8" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e6" style="edgeStyle=none;" edge="1" source="acteur3" target="uc7" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e7" style="edgeStyle=none;" edge="1" source="acteur3" target="uc4" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ====== INCLUSIONS (include) ====== -->
+    <mxCell id="inc1" value="&lt;&lt;include&gt;&gt;" style="edgeStyle=none;dashed=1;fontSize=9;" edge="1" source="uc1" target="uc2" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="inc2" value="&lt;&lt;include&gt;&gt;" style="edgeStyle=none;dashed=1;fontSize=9;" edge="1" source="uc1" target="uc3" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="inc3" value="&lt;&lt;include&gt;&gt;" style="edgeStyle=none;dashed=1;fontSize=9;" edge="1" source="uc1" target="uc4" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="inc4" value="&lt;&lt;include&gt;&gt;" style="edgeStyle=none;dashed=1;fontSize=9;" edge="1" source="uc1" target="uc5" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="inc5" value="&lt;&lt;extend&gt;&gt;" style="edgeStyle=none;dashed=1;fontSize=9;" edge="1" source="uc4" target="uc7" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="inc6" value="&lt;&lt;include&gt;&gt;" style="edgeStyle=none;dashed=1;fontSize=9;" edge="1" source="uc5" target="uc8" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="inc7" value="&lt;&lt;include&gt;&gt;" style="edgeStyle=none;dashed=1;fontSize=9;" edge="1" source="uc5" target="uc9" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Légende -->
+    <mxCell id="leg" value="Légende :  Jaune = UC déclencheur  |  Bleu = UC extraction  |  Orange = UC LLM  |  Rouge = UC alerte  |  Vert = UC QALITAS  |  Violet = UC système" style="text;html=1;fontSize=9;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;align=center;" vertex="1" parent="1">
+      <mxGeometry x="100" y="790" width="970" height="25" as="geometry" />
+    </mxCell>
+
+  </root>
+</mxGraphModel>

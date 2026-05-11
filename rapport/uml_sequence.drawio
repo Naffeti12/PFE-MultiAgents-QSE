@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+
+    <!-- Titre -->
+    <mxCell id="title" value="Diagramme de Séquence — Exécution du Pipeline Multi-Agents QSE" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#1A3A5C;" vertex="1" parent="1">
+      <mxGeometry x="40" y="10" width="1570" height="30" as="geometry" />
+    </mxCell>
+
+    <!-- ====== PARTICIPANTS (lifelines) ====== -->
+    <!-- Responsable QSE -->
+    <mxCell id="p1" value="Responsable QSE" style="shape=mxgraph.uml.actor2;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="55" width="120" height="60" as="geometry" />
+    </mxCell>
+    <mxCell id="p1line" style="edgeStyle=none;dashed=1;strokeColor=#6c8ebf;" edge="1" source="p1" target="p1end" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="p1end" style="point;" vertex="1" parent="1">
+      <mxGeometry x="120" y="1100" as="geometry" />
+    </mxCell>
+
+    <!-- Orchestrateur -->
+    <mxCell id="p2" value="Orchestrateur&#xa;(LangGraph)" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="270" y="65" width="140" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="p2line" style="edgeStyle=none;dashed=1;strokeColor=#d6b656;" edge="1" source="p2" target="p2end" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="p2end" style="point;" vertex="1" parent="1">
+      <mxGeometry x="340" y="1100" as="geometry" />
+    </mxCell>
+
+    <!-- Agent 1 -->
+    <mxCell id="p3" value="Agent 1&#xa;Extraction" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="480" y="65" width="120" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="p3line" style="edgeStyle=none;dashed=1;strokeColor=#82b366;" edge="1" source="p3" target="p3end" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="p3end" style="point;" vertex="1" parent="1">
+      <mxGeometry x="540" y="1100" as="geometry" />
+    </mxCell>
+
+    <!-- QALITAS API -->
+    <mxCell id="p4" value="QALITAS API" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="670" y="65" width="120" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="p4line" style="edgeStyle=none;dashed=1;strokeColor=#82b366;" edge="1" source="p4" target="p4end" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="p4end" style="point;" vertex="1" parent="1">
+      <mxGeometry x="730" y="1100" as="geometry" />
+    </mxCell>
+
+    <!-- Agent 2 -->
+    <mxCell id="p5" value="Agent 2&#xa;RPN" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="860" y="65" width="120" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="p5line" style="edgeStyle=none;dashed=1;strokeColor=#6c8ebf;" edge="1" source="p5" target="p5end" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="p5end" style="point;" vertex="1" parent="1">
+      <mxGeometry x="920" y="1100" as="geometry" />
+    </mxCell>
+
+    <!-- Agent 3 -->
+    <mxCell id="p6" value="Agent 3&#xa;Opportunités" style="rounded=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="1050" y="65" width="120" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="p6line" style="edgeStyle=none;dashed=1;strokeColor=#d6b656;" edge="1" source="p6" target="p6end" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="p6end" style="point;" vertex="1" parent="1">
+      <mxGeometry x="1110" y="1100" as="geometry" />
+    </mxCell>
+
+    <!-- Agent 4 -->
+    <mxCell id="p7" value="Agent 4&#xa;Monitoring" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="1240" y="65" width="120" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="p7line" style="edgeStyle=none;dashed=1;strokeColor=#b85450;" edge="1" source="p7" target="p7end" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="p7end" style="point;" vertex="1" parent="1">
+      <mxGeometry x="1300" y="1100" as="geometry" />
+    </mxCell>
+
+    <!-- LLM Ollama -->
+    <mxCell id="p8" value="LLM Ollama&#xa;(llama3.2)" style="rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="1430" y="65" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="p8line" style="edgeStyle=none;dashed=1;strokeColor=#9673a6;" edge="1" source="p8" target="p8end" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="p8end" style="point;" vertex="1" parent="1">
+      <mxGeometry x="1495" y="1100" as="geometry" />
+    </mxCell>
+
+    <!-- ====== MESSAGES ====== -->
+
+    <!-- 1. Lancer pipeline -->
+    <mxCell id="m1" value="1: lancer_pipeline(--real)" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;fontStyle=1;" edge="1" source="p1" target="p2" parent="1">
+      <mxGeometry x="-0.5" y="10" relative="1" as="geometry">
+        <mxPoint x="120" y="160" as="sourcePoint" />
+        <mxPoint x="270" y="160" as="targetPoint" />
+        <Array as="points" />
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- 2. init_graph() -->
+    <mxCell id="m2" value="2: init_graph(PipelineState)" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;" edge="1" source="p2" target="p3" parent="1">
+      <mxGeometry x="-0.5" y="10" relative="1" as="geometry">
+        <mxPoint x="340" y="200" as="sourcePoint" />
+        <mxPoint x="480" y="200" as="targetPoint" />
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- 3. GET /Risques -->
+    <mxCell id="m3" value="3: GET /Risques, /Opportunites, /Actions" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;" edge="1" source="p3" target="p4" parent="1">
+      <mxGeometry x="-0.5" y="10" relative="1" as="geometry">
+        <mxPoint x="540" y="240" as="sourcePoint" />
+        <mxPoint x="670" y="240" as="targetPoint" />
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- 4. 200 OK + données JSON -->
+    <mxCell id="m4" value="4: 200 OK {risques[373], opps[195], actions[]}" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;dashed=1;" edge="1" source="p4" target="p3" parent="1">
+      <mxGeometry x="-0.5" y="10" relative="1" as="geometry">
+        <mxPoint x="670" y="270" as="sourcePoint" />
+        <mxPoint x="540" y="270" as="targetPoint" />
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- 5. PipelineState mis à jour -->
+    <mxCell id="m5" value="5: state.risques = data_normalisée" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;dashed=1;" edge="1" source="p3" target="p2" parent="1">
+      <mxGeometry x="-0.5" y="10" relative="1" as="geometry">
+        <mxPoint x="480" y="300" as="sourcePoint" />
+        <mxPoint x="340" y="300" as="targetPoint" />
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- 6. run_agent2 -->
+    <mxCell id="m6" value="6: run_agent2(state)" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;fontStyle=1;" edge="1" source="p2" target="p5" parent="1">
+      <mxGeometry x="-0.5" y="10" relative="1" as="geometry">
+        <mxPoint x="340" y="340" as="sourcePoint" />
+        <mxPoint x="860" y="340" as="targetPoint" />
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- 7. calc RPN résiduel -->
+    <mxCell id="m7" value="7: calcul RPN_résiduel = RPN × (1 − efficacité)" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;" edge="1" source="p5" target="p5" parent="1">
+      <mxGeometry x="-0.5" y="10" relative="1" as="geometry">
+        <mxPoint x="920" y="370" as="sourcePoint" />
+        <mxPoint x="1050" y="370" as="targetPoint" />
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- 8. résultat Agent2 -->
+    <mxCell id="m8" value="8: state.actions_agent2[89], state.alertes[]" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;dashed=1;" edge="1" source="p5" target="p2" parent="1">
+      <mxGeometry x="-0.5" y="10" relative="1" as="geometry">
+        <mxPoint x="860" y="400" as="sourcePoint" />
+        <mxPoint x="340" y="400" as="targetPoint" />
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- 9. run_agent3 -->
+    <mxCell id="m9" value="9: run_agent3(state)" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;fontStyle=1;" edge="1" source="p2" target="p6" parent="1">
+      <mxGeometry x="-0.5" y="10" relative="1" as="geometry">
+        <mxPoint x="340" y="440" as="sourcePoint" />
+        <mxPoint x="1050" y="440" as="targetPoint" />
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- 10. prompt LLM Agent3 -->
+    <mxCell id="m10" value="10: POST prompt_opportunite(contexte, KPI)" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;" edge="1" source="p6" target="p8" parent="1">
+      <mxGeometry x="-0.5" y="10" relative="1" as="geometry">
+        <mxPoint x="1110" y="470" as="sourcePoint" />
+        <mxPoint x="1430" y="470" as="targetPoint" />
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- 11. réponse LLM -->
+    <mxCell id="m11" value="11: analyse {classification, niveau, plan_action}" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;dashed=1;" edge="1" source="p8" target="p6" parent="1">
+      <mxGeometry x="-0.5" y="10" relative="1" as="geometry">
+        <mxPoint x="1430" y="500" as="sourcePoint" />
+        <mxPoint x="1110" y="500" as="targetPoint" />
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- 12. résultat Agent3 -->
+    <mxCell id="m12" value="12: state.actions_agent3[40]" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;dashed=1;" edge="1" source="p6" target="p2" parent="1">
+      <mxGeometry x="-0.5" y="10" relative="1" as="geometry">
+        <mxPoint x="1050" y="530" as="sourcePoint" />
+        <mxPoint x="340" y="530" as="targetPoint" />
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- 13. run_agent4 -->
+    <mxCell id="m13" value="13: run_agent4(state)" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;fontStyle=1;" edge="1" source="p2" target="p7" parent="1">
+      <mxGeometry x="-0.5" y="10" relative="1" as="geometry">
+        <mxPoint x="340" y="570" as="sourcePoint" />
+        <mxPoint x="1240" y="570" as="targetPoint" />
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- 14. monitoring KPI -->
+    <mxCell id="m14" value="14: monitoring_kpi(risques, seuils)" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;" edge="1" source="p7" target="p7" parent="1">
+      <mxGeometry x="-0.5" y="10" relative="1" as="geometry">
+        <mxPoint x="1300" y="600" as="sourcePoint" />
+        <mxPoint x="1400" y="600" as="targetPoint" />
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- 15. prompt LLM Agent4 -->
+    <mxCell id="m15" value="15: POST prompt_alerte(risque_critique, contexte)" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;" edge="1" source="p7" target="p8" parent="1">
+      <mxGeometry x="-0.5" y="10" relative="1" as="geometry">
+        <mxPoint x="1300" y="630" as="sourcePoint" />
+        <mxPoint x="1430" y="630" as="targetPoint" />
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- 16. réponse LLM alerte -->
+    <mxCell id="m16" value="16: résumé alerte + recommandations urgentes" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;dashed=1;" edge="1" source="p8" target="p7" parent="1">
+      <mxGeometry x="-0.5" y="10" relative="1" as="geometry">
+        <mxPoint x="1430" y="660" as="sourcePoint" />
+        <mxPoint x="1300" y="660" as="targetPoint" />
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- 17. POST /Actions QALITAS -->
+    <mxCell id="m17" value="17: POST /Actions [Agent4-ALERTE] ARIS/173/2026" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;strokeColor=#b85450;fontStyle=1;" edge="1" source="p7" target="p4" parent="1">
+      <mxGeometry x="-0.5" y="10" relative="1" as="geometry">
+        <mxPoint x="1240" y="700" as="sourcePoint" />
+        <mxPoint x="730" y="700" as="targetPoint" />
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- 18. 201 Created -->
+    <mxCell id="m18" value="18: 201 Created {id: ARIS/173/2026}" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;dashed=1;strokeColor=#82b366;" edge="1" source="p4" target="p7" parent="1">
+      <mxGeometry x="-0.5" y="10" relative="1" as="geometry">
+        <mxPoint x="670" y="730" as="sourcePoint" />
+        <mxPoint x="1240" y="730" as="targetPoint" />
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- 19. résultat final -->
+    <mxCell id="m19" value="19: state.alertes[4], state.injections[133]" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;dashed=1;" edge="1" source="p7" target="p2" parent="1">
+      <mxGeometry x="-0.5" y="10" relative="1" as="geometry">
+        <mxPoint x="1240" y="760" as="sourcePoint" />
+        <mxPoint x="340" y="760" as="targetPoint" />
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- 20. rapport final -->
+    <mxCell id="m20" value="20: rapport_execution {risques:373, actions:133, alertes:4}" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;fontStyle=1;dashed=1;" edge="1" source="p2" target="p1" parent="1">
+      <mxGeometry x="-0.5" y="10" relative="1" as="geometry">
+        <mxPoint x="340" y="800" as="sourcePoint" />
+        <mxPoint x="120" y="800" as="targetPoint" />
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- Notes / fragments -->
+    <mxCell id="note_loop" value="loop [pour chaque risque critique]" style="text;html=1;strokeColor=#b85450;fillColor=#f8cecc;fontSize=9;align=left;verticalAlign=top;spacingLeft=4;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="830" y="580" width="200" height="25" as="geometry" />
+    </mxCell>
+    <mxCell id="note_alt" value="alt [RPN_résiduel ≥ seuil → ALERTE | sinon → SURVEILLANCE]" style="text;html=1;strokeColor=#d6b656;fillColor=#fff2cc;fontSize=9;align=left;verticalAlign=top;spacingLeft=4;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="830" y="610" width="360" height="25" as="geometry" />
+    </mxCell>
+
+  </root>
+</mxGraphModel>

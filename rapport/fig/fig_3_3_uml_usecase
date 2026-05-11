@@ -1,0 +1,49 @@
+digraph UseCase {
+	graph [bgcolor=white dpi=300 fontname=Arial nodesep=0.7 rankdir=LR ranksep=1.2 splines=ortho]
+	node [fontname=Arial fontsize=10]
+	edge [fontname=Arial fontsize=9]
+	RQ [label="Responsable
+Qualité" fontname="Arial Bold" fontsize=11 fontweight=bold shape=plaintext]
+	SYS [label="Système
+QALITAS" fontname="Arial Bold" fontsize=11 fontweight=bold shape=plaintext]
+	ORCH [label="Orchestrateur
+LangGraph" fontname="Arial Bold" fontsize=11 fontweight=bold shape=plaintext]
+	subgraph cluster_system {
+		color="#2E75B6" fillcolor="#DEEAF1" fontcolor="#1F3864" fontname="Arial Bold" fontsize=12 label="Plateforme IA QALITAS QSE" penwidth=2 style="rounded,filled"
+		UC1 [label="Lancer l'analyse
+des risques" color="#2E75B6" fillcolor=white fontsize=9 height=0.65 penwidth=1.5 shape=ellipse style=filled width=2.0]
+		UC2 [label="Consulter les
+risques critiques" color="#2E75B6" fillcolor=white fontsize=9 height=0.65 penwidth=1.5 shape=ellipse style=filled width=2.0]
+		UC3 [label="Valider les
+recommandations" color="#2E75B6" fillcolor=white fontsize=9 height=0.65 penwidth=1.5 shape=ellipse style=filled width=2.0]
+		UC4 [label="Consulter le
+rapport de synthèse" color="#2E75B6" fillcolor=white fontsize=9 height=0.65 penwidth=1.5 shape=ellipse style=filled width=2.0]
+		UC5 [label="Configurer les
+seuils RPN" color="#2E75B6" fillcolor=white fontsize=9 height=0.65 penwidth=1.5 shape=ellipse style=filled width=2.0]
+		UC6 [label="Extraire les
+données (Agent 1)" color="#2E75B6" fillcolor=white fontsize=9 height=0.65 penwidth=1.5 shape=ellipse style=filled width=2.0]
+		UC7 [label="Évaluer le RPN
+(Agent 2)" color="#2E75B6" fillcolor=white fontsize=9 height=0.65 penwidth=1.5 shape=ellipse style=filled width=2.0]
+		UC8 [label="Détecter les
+opportunités (Agent 3)" color="#2E75B6" fillcolor=white fontsize=9 height=0.65 penwidth=1.5 shape=ellipse style=filled width=2.0]
+		UC9 [label="Générer alertes &
+injecter (Agent 4)" color="#2E75B6" fillcolor=white fontsize=9 height=0.65 penwidth=1.5 shape=ellipse style=filled width=2.0]
+		UC10 [label="Déclencher
+réévaluation auto" color="#2E75B6" fillcolor=white fontsize=9 height=0.65 penwidth=1.5 shape=ellipse style=filled width=2.0]
+	}
+	RQ -> UC1 [arrowhead=none color="#333333" penwidth=1.3]
+	RQ -> UC2 [arrowhead=none color="#333333" penwidth=1.3]
+	RQ -> UC3 [arrowhead=none color="#333333" penwidth=1.3]
+	RQ -> UC4 [arrowhead=none color="#333333" penwidth=1.3]
+	RQ -> UC5 [arrowhead=none color="#333333" penwidth=1.3]
+	SYS -> UC6 [arrowhead=none color="#333333" penwidth=1.3 style=dashed]
+	SYS -> UC9 [arrowhead=none color="#333333" penwidth=1.3 style=dashed]
+	ORCH -> UC7 [arrowhead=none color="#333333" penwidth=1.3]
+	ORCH -> UC8 [arrowhead=none color="#333333" penwidth=1.3]
+	ORCH -> UC10 [arrowhead=none color="#333333" penwidth=1.3]
+	UC1 -> UC6 [label=<<include>> arrowhead=open color="#2E75B6" fontcolor="#2E75B6" fontsize=8 penwidth=1.2 style=dashed]
+	UC1 -> UC7 [label=<<include>> arrowhead=open color="#2E75B6" fontcolor="#2E75B6" fontsize=8 penwidth=1.2 style=dashed]
+	UC1 -> UC8 [label=<<include>> arrowhead=open color="#2E75B6" fontcolor="#2E75B6" fontsize=8 penwidth=1.2 style=dashed]
+	UC1 -> UC9 [label=<<include>> arrowhead=open color="#2E75B6" fontcolor="#2E75B6" fontsize=8 penwidth=1.2 style=dashed]
+	UC7 -> UC10 [label=<<extend>> arrowhead=open color="#C55A11" fontcolor="#C55A11" fontsize=8 penwidth=1.2 style=dashed]
+}
