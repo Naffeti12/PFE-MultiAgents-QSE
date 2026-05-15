@@ -227,6 +227,16 @@ def agent2_node(state: PipelineState) -> Dict[str, Any]:
             consq = ro.get("consequences", [])
             if isinstance(consq, list):
                 consq = "; ".join(consq)
+
+            # Recuperer les scores depuis les champs Agent1 (lowercase)
+            # ipr = IPR pre-calcule = F*G*D (plus precis que F*G seul)
+            ipr = ro.get("ipr")
+            det = ro.get("detectabilite")
+
+            # On passe toujours l'IPR comme RPN (F*G*D complet).
+            # On ne construit PAS d'Appreciation F*G : compute_score_brut
+            # privilegierait F*G et perdrait la composante D, sous-estimant
+            # le score brut de ~33% pour une detectabilite standard de 3.
             extra_carto.append({
                 "Code":             ro.get("code", ""),
                 "Risques":          ro.get("intitule", ""),
@@ -234,10 +244,9 @@ def agent2_node(state: PipelineState) -> Dict[str, Any]:
                 "Effets Negatifs":  consq,
                 "Processus":        ro.get("perimetre", ""),
                 "Systeme":          ro.get("domaine", "Q"),
-                # Valeurs par defaut si non disponibles (Agent2 recalculera)
-                "Frequence":        ro.get("Frequence", 3),
-                "Gravite":          ro.get("Gravite",   3),
-                "Maitrise":         ro.get("Maitrise",  3),
+                # RPN = IPR complet -> utilise directement par compute_score_brut
+                "RPN":              ipr,
+                "Maitrise":         det if det is not None else 3,
                 "_source_agent1":   ro.get("source", ""),
             })
         context.setdefault("cartographie", []).extend(extra_carto)
