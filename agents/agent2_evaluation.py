@@ -228,8 +228,8 @@ def compute_score_brut(entry: Dict[str, Any]) -> Dict[str, Any]:
         "score_brut": score_brut,
         "niveau_brut": niveau,
         "methode_brut": methode,
-        "score_min_acceptable": entry.get("Score Min..", 0),
-        "score_max_acceptable": entry.get("Score Max..", 0),
+        "score_min_acceptable": entry.get("Min", 0),
+        "score_max_acceptable": entry.get("Max", 0),
     }
 
 
@@ -370,8 +370,8 @@ def compute_score_residuel(
         )
 
     # Ajuster selon les limites definies dans la cartographie
-    score_min = entry.get("Score Min..", 0) or 0
-    score_max = entry.get("Score Max..", 0) or 0
+    score_min = entry.get("Min", 0) or 0
+    score_max = entry.get("Max", 0) or 0
     if score_min and score_max and score_residuel:
         if score_residuel < score_min or score_residuel > score_max:
             note_seuils = (

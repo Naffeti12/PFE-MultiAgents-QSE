@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 LLM_CONFIG = {
-    "model": "llama3",
+    "model": "llama3.2",
     "temperature": 0.1,
     "num_predict": 1024,
     "format": "json",
