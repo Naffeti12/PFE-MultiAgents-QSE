@@ -229,6 +229,13 @@ def main():
         password=env["password"],
     )
 
+    # Authentification obligatoire avant tout appel API
+    logger.info("Authentification en cours...")
+    if not client.login():
+        logger.error("Echec de l'authentification QALITAS. Verifiez les credentials dans .env")
+        sys.exit(1)
+    logger.info("Authentification reussie.")
+
     # Recuperer tous les risques
     logger.info("Recuperation des risques QALITAS...")
     all_risks = get_all_risks_including_brouillon(client)
