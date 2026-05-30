@@ -1446,6 +1446,102 @@ class QalitasWriter:
         )
 
     # -------------------------------------------------------------------------
+    # Creation d'une nouvelle campagne d'evaluation
+    # -------------------------------------------------------------------------
+
+    def create_evaluation_campaign(
+        self,
+        designation: str,
+        formula: str = "F*G",
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        min_score: float = 1.0,
+        max_score: float = 25.0,
+    ) -> Tuple[bool, str]:
+        """
+        Cree une nouvelle campagne d'evaluation dans QALITAS.
+
+        Workflow (2 etapes, identique a RiskOpportunity/Create) :
+          1. GET /RiskOpportunityEvaluation/Create -> HTML avec CSRF + GUID serveur
+          2. POST /RiskOpportunityEvaluation/Create avec le payload
+
+        Retourne (True, evaluation_id) si succes, (False, "") sinon.
+        """
+        import uuid as _uuid
+
+        date_fmt = "%d/%m/%Y"
+        eval_id = ""
+        csrf = ""
+        server_hidden: Dict[str, str] = {}
+
+        if not self.dry_run:
+            init_url = f"{self.client.base_url}/RiskOpportunityEvaluation/Create"
+            try:
+                init_resp = self.client._session.get(
+                    init_url,
+                    timeout=self.client.timeout,
+                    verify=False,
+                    headers={"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"},
+                )
+                for inp in re.findall(
+                    r'<input[^>]+type=["\']hidden["\'][^>]*/?>',
+                    init_resp.text, re.I
+                ):
+                    nm = re.search(r'name=["\']([^"\']+)["\']', inp, re.I)
+                    vl = re.search(r'value=["\']([^"\']*)["\']', inp, re.I)
+                    if nm:
+                        server_hidden[nm.group(1)] = vl.group(1) if vl else ""
+
+                csrf    = server_hidden.get("__RequestVerificationToken", "")
+                eval_id = server_hidden.get("Id", "")
+                if not eval_id:
+                    eval_id = str(_uuid.uuid4())
+                    logger.warning("Id GUID non extrait depuis EvaluationCreate, UUID local genere : %s", eval_id)
+            except Exception as exc:
+                logger.error("Echec GET init RiskOpportunityEvaluation/Create : %s", exc)
+                return False, ""
+        else:
+            eval_id = str(_uuid.uuid4())
+            csrf = "dry-run-token"
+            server_hidden = {
+                "CompanyId": "00000000-0000-0000-0000-000000000000",
+                "SiteId":    "00000000-0000-0000-0000-000000000000",
+            }
+
+        sd = start_date or datetime.now()
+        ed = end_date or datetime.now()
+
+        payload = dict(server_hidden)
+        payload.pop("__RequestVerificationToken", None)
+        payload.update({
+            "Id":               eval_id,
+            "Designation":      designation[:200],
+            "Formula":          formula,
+            "State":            "2",  # Realise
+            "StartDate":        sd.strftime(date_fmt),
+            "EndDate":          ed.strftime(date_fmt),
+            "MinScore":         str(round(min_score, 2)),
+            "MaxScore":         str(round(max_score, 2)),
+            "RevaluationState": "1",
+            "ParameterNumber":  str(len(formula.split("*"))) if "*" in formula else "2",
+        })
+
+        ok, resp = self._post_form(
+            "RiskOpportunityEvaluation/Create",
+            payload,
+            csrf_token=csrf,
+        )
+
+        if ok and isinstance(resp, str) and resp.startswith("false|"):
+            logger.warning("create_evaluation_campaign : echec metier QALITAS : %s", resp)
+            return False, ""
+
+        if ok:
+            logger.info("Campagne evaluation creee : %s (%s)", designation, eval_id)
+            return True, eval_id
+
+        return False, ""
+
     # Mise a jour de la campagne d'evaluation (evaluation metadata)
     # -------------------------------------------------------------------------
 
@@ -1787,7 +1883,11 @@ def inject_agent1_results(
         "skipped_qalitas": 0,
         "skipped_cache":   0,
         "errors":          0,
+        "eval_created":    0,
+        "eval_errors":     0,
     }
+    # Collecte des GUIDs crees pour alimentation de l'historique evaluation
+    created_risk_guids: List[Dict] = []  # [{guid, nature, gravite, intitule}]
 
     # Mapping domaine -> indicateurs systeme Q/S/E
     DOMAINE_QSE: Dict[str, Dict[str, bool]] = {
@@ -1856,7 +1956,7 @@ def inject_agent1_results(
             responsable=responsable,
             causes=causes,
             consequences=consequences,
-            state=0,  # Brouillon : les R&O crees par agent doivent etre valides manuellement
+            state=1,  # Identifie : visible dans la liste QALITAS (state=0 Brouillon masque les R&O)
         )
 
         if ok:
@@ -1872,6 +1972,19 @@ def inject_agent1_results(
                     parts = resp.split("|")
                     if len(parts) >= 2:
                         qalitas_id = parts[1].strip()
+                if qalitas_id:
+                    # Stocker le GUID pour alimenter l'historique evaluation ensuite
+                    gravite_raw = entry.get("gravite", entry.get("gravity_code", ""))
+                    try:
+                        g_val = float(re.sub(r"[^\d.]", "", str(gravite_raw))) if gravite_raw else 2.0
+                    except ValueError:
+                        g_val = 2.0
+                    created_risk_guids.append({
+                        "guid":     qalitas_id,
+                        "nature":   nature,
+                        "gravite":  g_val,
+                        "intitule": intitule[:80],
+                    })
                 mark_as_injected(fp, intitule[:80], _cache, agent="agent1", qalitas_id=qalitas_id)
         else:
             stats["errors"] += 1
@@ -1879,11 +1992,74 @@ def inject_agent1_results(
     if not writer.dry_run:
         _save_cache(_cache)
 
+    # -----------------------------------------------------------------------
+    # Apres creation des R&O : creer une campagne d'evaluation "Agent IA"
+    # et y enregistrer une appreciation initiale pour chaque risque cree.
+    # Cela alimente l'onglet "Historique Evaluation" visible dans QALITAS.
+    # -----------------------------------------------------------------------
+    if created_risk_guids and not writer.dry_run:
+        today = datetime.now()
+        eval_designation = f"Evaluation IA Agent1 — {today.strftime('%d/%m/%Y %H:%M')}"
+
+        ok_eval, eval_id = writer.create_evaluation_campaign(
+            designation=eval_designation,
+            formula="F*G",
+            start_date=today,
+            end_date=today,
+            min_score=1.0,
+            max_score=25.0,
+        )
+
+        if ok_eval and eval_id:
+            logger.info(
+                "Campagne evaluation IA creee : %s (%s) — ajout de %d risques",
+                eval_designation, eval_id, len(created_risk_guids)
+            )
+            for item in created_risk_guids:
+                # Score initial = F=1, G=gravite (1-5), RPN = 1*G
+                g = max(1.0, min(5.0, item["gravite"]))
+                rpn = round(1.0 * g, 2)
+                ok_appr, _ = writer.save_risk_appreciation(
+                    evaluation_id=eval_id,
+                    risk_opportunity_id=item["guid"],
+                    f_prime=1.0,
+                    g_prime=g,
+                    score_prime=rpn,
+                    f_brut=1.0,
+                    g_brut=g,
+                    score_brut=rpn,
+                    decision_comments=(
+                        f"Evaluation initiale automatique — Agent IA 1. "
+                        f"Risque identifie : {item['intitule']}"
+                    ),
+                )
+                if ok_appr:
+                    stats["eval_created"] += 1
+                    logger.info(
+                        "[Eval-A1] Appreciation enregistree : %s (G=%.1f, RPN=%.1f)",
+                        item["intitule"], g, rpn
+                    )
+                else:
+                    stats["eval_errors"] += 1
+                    logger.warning(
+                        "[Eval-A1] Echec appreciation : %s dans campagne %s",
+                        item["intitule"], eval_id
+                    )
+        else:
+            logger.warning(
+                "Impossible de creer la campagne d'evaluation IA "
+                "— historique evaluation non alimente pour %d risques",
+                len(created_risk_guids)
+            )
+            stats["eval_errors"] += len(created_risk_guids)
+
     logger.info(
         "Injection Agent1 : %d traites | %d risques crees | %d opportunites crees | "
-        "%d cache | %d deja dans QALITAS | %d erreurs",
+        "%d cache | %d deja dans QALITAS | %d erreurs | "
+        "%d appreciations eval creees | %d eval_erreurs",
         stats["processed"], stats["created_risques"], stats["created_opps"],
         stats["skipped_cache"], stats["skipped_qalitas"], stats["errors"],
+        stats["eval_created"], stats["eval_errors"],
     )
     return stats
 
