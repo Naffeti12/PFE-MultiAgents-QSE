@@ -1028,6 +1028,21 @@ def run_agent1(
 
     logger.info("Rapport Agent1 sauvegarde : %s", out_file)
 
+    # --- Injection QALITAS (uniquement si mode reel) ---
+    if not dry_run and register:
+        logger.info("[AGENT 1] Lancement injection QALITAS (mode reel)...")
+        inj_stats = inject_register_to_qalitas(register, dry_run=False)
+        rapport["injection_stats"] = inj_stats
+        logger.info(
+            "[AGENT 1] Injection terminee : %d risques + %d opportunites crees | %d deja presents | %d erreurs",
+            inj_stats.get("created_risques", 0),
+            inj_stats.get("created_opportunites", 0),
+            inj_stats.get("skipped_existing", 0),
+            inj_stats.get("errors", 0),
+        )
+    elif dry_run:
+        logger.info("[AGENT 1] Mode dry-run : injection QALITAS ignoree.")
+
     # Console
     print("\n" + "=" * 65)
     print("SYNTHESE AGENT 1 — REGISTRE R&O IDENTIFIE")
