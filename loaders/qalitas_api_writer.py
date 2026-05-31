@@ -218,6 +218,33 @@ ACTION_SOURCE_RISQUE = "11"   # actions liees a un risque (TriggerSourceId = ris
 ACTION_SOURCE_AGENT4 = "4"    # actions sans lien QALITAS (alertes monitoring sans GUID risque)
                                # "4" accepte TriggerSourceId="" - affiche "Sans source" mais ne rejette pas
 
+# =============================================================================
+# GUIDs QALITAS — Types de risque, Catégories (extraits via API GetEnabledRisks)
+# =============================================================================
+
+RISK_TYPE_GUIDS = {
+    "organisationnel":   "82cb41e1-7392-4e54-746c-39d755b6345c",
+    "socioculturel":     "e0166113-8b7b-dc3b-addd-39d755b6348b",
+    "operationnel":      "5c74b18d-7943-e234-4276-39d755b6343d",
+    "opérationnel":      "5c74b18d-7943-e234-4276-39d755b6343d",
+    "technologique":     "627a4223-127b-f69b-6e2a-39d755b6349b",
+    "politique":         "21924254-7436-c4e0-30b3-39d755b6346c",
+    "strategique":       "69f9dd13-366a-7214-5fbc-39d755b6342d",
+    "stratégique":       "69f9dd13-366a-7214-5fbc-39d755b6342d",
+    "economique":        "f9c91ce9-53ed-fdcb-8eec-39d755b6347b",
+    "économique":        "f9c91ce9-53ed-fdcb-8eec-39d755b6347b",
+    "risque de gestion": "c3452084-abd9-c305-294d-39d755b6344d",
+    "gestion":           "c3452084-abd9-c305-294d-39d755b6344d",
+    "environnemental":   "93aef6c2-d2c8-07b5-df86-39ebac854ad3",
+    "maintenance":       "7d0ffdb2-fa08-7010-1a9d-3a192341b70d",
+}
+
+RISK_CATEGORY_GUIDS = {
+    "interne":   "a6e529f0-043d-73e6-4e4e-39dda0b13e7d",
+    "externe":   "1c2cf170-90d0-8197-af18-39dda0b13e7f",
+    "emballage": "d99158db-8df2-f3ca-aec1-3a192341299c",
+}
+
 # Niveaux de criticite Agent4 -> priorite action QALITAS (1=haute, 2=moyenne, 3=basse)
 CRITICITE_TO_PRIORITY = {
     "ALERTE":       1,
@@ -774,11 +801,20 @@ class QalitasWriter:
             for row in rows:
                 if row.get("RiskOpportunityId") == risk_opportunity_id:
                     return row
-            logger.warning(
-                "GetRiskAppreciation : risque %s non trouve dans l'evaluation %s (%d lignes)",
-                risk_opportunity_id, evaluation_id, len(rows)
+            # Ligne absente : retourner un stub pour insertion (CRUD=1)
+            logger.info(
+                "GetRiskAppreciation : risque %s absent de la campagne %s -> mode insertion (CRUD=1)",
+                risk_opportunity_id, evaluation_id
             )
-            return {}
+            return {
+                "Id":                          "",  # vide = nouvelle ligne
+                "RiskOpportunityEvaluationId": evaluation_id,
+                "RiskOpportunityId":           risk_opportunity_id,
+                "RiskOpportunityNature":       0,
+                "EvaluationState":             2,
+                "EvaluationFormula":           "F*G",
+                "_insert":                     True,  # flag interne : mode création
+            }
         except Exception as exc:
             logger.error("GetRiskAppreciation ERREUR pour evaluation %s : %s", evaluation_id, exc)
             return {}
@@ -878,15 +914,23 @@ class QalitasWriter:
 
         # --- Etape 1 : recuperer la ligne d'appreciation pour obtenir le Id ---
         row = self._get_appreciation_row(evaluation_id, risk_opportunity_id)
-        if not row and not self.dry_run:
+        if row is None and not self.dry_run:
             logger.error(
-                "Impossible de trouver la ligne appreciation pour risque %s "
+                "Impossible de contacter QALITAS pour risque %s "
                 "dans evaluation %s — abandon.",
                 risk_opportunity_id, evaluation_id
             )
-            return False, {"error": "Ligne appreciation introuvable via GetRiskAppreciation"}
+            return False, {"error": "Erreur reseau GetRiskAppreciation"}
+        if not row:
+            row = {
+                "Id": "", "RiskOpportunityEvaluationId": evaluation_id,
+                "RiskOpportunityId": risk_opportunity_id,
+                "RiskOpportunityNature": 0, "EvaluationState": 2,
+                "EvaluationFormula": "F*G", "_insert": True,
+            }
 
         appreciation_row_id  = row.get("Id", "dry-run-appreciation-id")
+        is_insert_mode       = row.get("_insert", False) or not appreciation_row_id
         nature               = row.get("RiskOpportunityNature", 0)
         eval_state           = row.get("EvaluationState", 2)
         eval_formula         = row.get("EvaluationFormula", "F*G") or "F*G"
@@ -932,7 +976,7 @@ class QalitasWriter:
             "RiskOpportunityNature":       str(nature),
             "EvaluationState":             str(eval_state),
             "EvaluationFormula":           eval_formula,
-            "CRUD":                        "0",
+            "CRUD":                        "1" if is_insert_mode else "0",
             # Parametres 1 et 2 : toujours geres par Agent2 (F/P et G depuis Excel)
             "Parameter1":                  str(round(f_brut, 2)) if f_brut else "",
             "Parameter2":                  str(round(g_brut, 2)) if g_brut else "",
@@ -1080,6 +1124,8 @@ class QalitasWriter:
         responsable: str = "",
         causes: str = "",
         consequences: str = "",
+        type_code: str = "",
+        category_code: str = "",
     ) -> Tuple[bool, Any]:
         """
         Cree un nouveau risque ou opportunite dans QALITAS via POST /RiskOpportunity/Create.
@@ -1237,11 +1283,11 @@ class QalitasWriter:
             "S":                bstr(system_s),
             "E":                bstr(system_e),
             "H":                "False",
-            "TypesId":          "",
-            "CategoryId":       "",
+            "TypesId":          RISK_TYPE_GUIDS.get((type_code or "").lower().strip(), ""),
+            "CategoryId":       RISK_CATEGORY_GUIDS.get((category_code or "").lower().strip(), ""),
             "PostId":           "",
             "EmployeeId":       "",
-            "IdentificationDate": "",
+            "IdentificationDate": datetime.now().strftime("%d/%m/%Y"),
             "DetectionMeans":   "",
             "Cause":            causes[:500] if causes else "",
             "Consequence":      consequences[:500] if consequences else "",
@@ -1927,7 +1973,9 @@ def inject_agent1_results(
         consequences = str(entry.get("consequences", entry.get("effets", "")))
         description  = str(entry.get("justification", entry.get("description", intitule)))
         responsable  = str(entry.get("responsable", ""))
-        gravity_code = str(entry.get("gravity_code", entry.get("gravite_code", "")))
+        gravity_code  = str(entry.get("gravity_code", entry.get("gravite_code", "")))
+        type_code     = str(entry.get("type_risque", entry.get("type_code", entry.get("categorie_type", ""))))
+        category_code = str(entry.get("categorie", entry.get("category_code", entry.get("interne_externe", ""))))
 
         # Mapping domaine -> systemes Q/S/E
         qse = DOMAINE_QSE.get(domaine, {"q": True, "s": False, "e": False})
@@ -1956,6 +2004,8 @@ def inject_agent1_results(
             responsable=responsable,
             causes=causes,
             consequences=consequences,
+            type_code=type_code,
+            category_code=category_code,
             state=1,  # Identifie : visible dans la liste QALITAS (state=0 Brouillon masque les R&O)
         )
 
