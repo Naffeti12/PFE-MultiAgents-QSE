@@ -156,7 +156,6 @@ def agent2_node(state: PipelineState) -> Dict[str, Any]:
 
     from agents.agent2_evaluation import evaluate_all
     from agents.agent2_llm import enrich_evaluations
-    from loaders.load_excel_data import load_all_context
 
     data_dir        = state.get("data_dir", "donnees")
     ro_register     = state.get("ro_register", [])
@@ -167,37 +166,23 @@ def agent2_node(state: PipelineState) -> Dict[str, Any]:
     prev_qstats     = dict(state.get("qalitas_stats") or {})
 
     # ------------------------------------------------------------------
-    # Etape 1 : Chargement du contexte complet (requis par evaluate_all)
-    # Priorite API si credentials disponibles : les enregistrements API
-    # contiennent RiskOpportunityId + RiskOpportunityEvaluationId dans _raw,
-    # indispensables pour que inject_agent2_results() cree les actions
-    # correctement liees aux risques QALITAS.
-    # Sans API : chargement Excel (pas de GUIDs → injection skipped_no_id).
+    # Etape 1 : Chargement unifie (API + inbox Excel/PDF + donnees/)
+    # Le Unified Loader fusionne toutes les sources en un seul contexte.
     # ------------------------------------------------------------------
-    import os as _os
-    from loaders.qalitas_api_client import DEFAULT_BASE_URL as _DEFAULT_BASE_URL
-    _qalitas_url  = _os.environ.get("QALITAS_BASE_URL", _DEFAULT_BASE_URL)
-    _qalitas_user = _os.environ.get("QALITAS_USERNAME", "MOHAMED.N")
-    _qalitas_pass = _os.environ.get("QALITAS_PASSWORD", "MOHAMED.N")
-    _use_api      = bool(_qalitas_user and _qalitas_pass)
-
     try:
-        if _use_api:
-            from loaders.qalitas_api_client import load_all_context_hybrid, DEFAULT_BASE_URL
-            context = load_all_context_hybrid(
-                data_dir=data_dir,
-                base_url=_qalitas_url or DEFAULT_BASE_URL,
-                username=_qalitas_user,
-                password=_qalitas_pass,
-                prefer_api=True,
-            )
-            logger.info("[Agent2] Contexte charge depuis API QALITAS (GUIDs disponibles).")
-        else:
-            context = load_all_context(data_dir)
-            logger.info("[Agent2] Contexte charge depuis Excel (pas de credentials API).")
+        from loaders.unified_loader import load_unified_context
+        context = load_unified_context(data_dir=data_dir)
+        logger.info(
+            "[Agent2] Contexte unifie : %d KPIs | %d NC | %d Carto | mode=%s",
+            len(context.get("kpis", [])),
+            len(context.get("nc", [])),
+            len(context.get("cartographie", [])),
+            context.get("_load_mode", "?"),
+        )
     except Exception as exc:
-        logger.warning("[Agent2] Chargement API echoue (%s), fallback Excel.", exc)
+        logger.warning("[Agent2] Unified loader echoue (%s), fallback Excel.", exc)
         try:
+            from loaders.load_excel_data import load_all_context
             context = load_all_context(data_dir)
         except Exception as exc2:
             logger.error("[Agent2] Impossible de charger le contexte : %s", exc2)
@@ -364,12 +349,17 @@ def agent2_node(state: PipelineState) -> Dict[str, Any]:
             username=qalitas_user,
             password=qalitas_pass,
         )
-        if not dry_run:
-            client.login()
-
-        writer   = QalitasWriter(client=client, dry_run=dry_run)
-        a2_stats = inject_agent2_results(risques_enrichis, writer)
-        prev_qstats["agent2"] = a2_stats
+        # Toujours se connecter : necessaire pour charger les tables de config
+        # (decisions, resultats) utilisees pour remplir l'historique evaluation,
+        # meme si dry_run=True (lecture seule, pas d'ecriture).
+        login_ok = client.login()
+        if not login_ok:
+            logger.warning("[Agent2] Echec login QALITAS — injection annulee.")
+            errors.append("Agent2_login: echec authentification QALITAS")
+        else:
+            writer   = QalitasWriter(client=client, dry_run=dry_run)
+            a2_stats = inject_agent2_results(risques_enrichis, writer)
+            prev_qstats["agent2"] = a2_stats
 
     except Exception as exc:
         logger.warning("[Agent2] Injection QALITAS echouee : %s", exc)
@@ -508,28 +498,37 @@ def agent4_node(state: PipelineState) -> Dict[str, Any]:
     max_iter  = int(state.get("max_iterations", 3))
 
     try:
-        # Chargement contexte (API si credentials disponibles pour avoir les GUIDs risques)
+        # Chargement unifie (API + inbox Excel/PDF + donnees/)
         try:
-            from loaders.qalitas_api_client import load_all_context_hybrid, DEFAULT_BASE_URL as _A4_BASE_URL
-            _a4_user = os.environ.get("QALITAS_USERNAME", "MOHAMED.N")
-            _a4_pass = os.environ.get("QALITAS_PASSWORD", "MOHAMED.N")
-            context = load_all_context_hybrid(
-                data_dir=data_dir,
-                base_url=os.environ.get("QALITAS_BASE_URL", _A4_BASE_URL),
-                username=_a4_user,
-                password=_a4_pass,
-                prefer_api=True,
+            from loaders.unified_loader import load_unified_context
+            context = load_unified_context(data_dir=data_dir)
+            logger.info(
+                "[Agent4] Contexte unifie : %d KPIs | %d NC | %d Carto | mode=%s",
+                len(context.get("kpis", [])),
+                len(context.get("nc", [])),
+                len(context.get("cartographie", [])),
+                context.get("_load_mode", "?"),
             )
-            logger.info("[Agent4] Contexte charge depuis API QALITAS (GUIDs disponibles pour enrichissement).")
         except Exception as _ctx_exc:
-            logger.warning("[Agent4] Chargement API echoue (%s), fallback Excel.", _ctx_exc)
+            logger.warning("[Agent4] Unified loader echoue (%s), fallback Excel.", _ctx_exc)
             context = load_all_context(data_dir)
 
         # Detection alertes PDF
+        # Inclure les pages PDF de l'inbox si disponibles
         pdf_alerts: list = []
+        all_pages: list = []
+
+        # 1. PDF fixe (dashboard.pdf)
         if os.path.exists(pdf_path):
-            pages = load_dashboard_text(pdf_path)
-            pdf_alerts = detect_pdf_alerts(pages, context=context)
+            all_pages.extend(load_dashboard_text(pdf_path))
+
+        # 2. PDFs de l'inbox (deposes par les clients)
+        all_pages.extend(context.get("dashboard_pages_inbox", []))
+
+        if all_pages:
+            pdf_alerts = detect_pdf_alerts(all_pages, context=context)
+            logger.info("[Agent4] %d pages PDF analysees (%d alertes)",
+                        len(all_pages), len(pdf_alerts))
 
         # Detection alertes Excel
         excel_alerts = detect_all_excel_alerts(context)

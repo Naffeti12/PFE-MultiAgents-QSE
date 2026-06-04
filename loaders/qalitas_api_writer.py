@@ -125,6 +125,39 @@ def _save_cache(cache: dict) -> None:
         json.dump(cache, f, ensure_ascii=False, indent=2)
 
 
+def _find_guid_in_cache(
+    title: str, processus: str, extra: str, cache: dict, weeks_back: int = 8
+) -> str:
+    """
+    Cherche le qalitas_id dans le cache en essayant les fingerprints
+    des N dernieres semaines (le fingerprint inclut le numero de semaine,
+    donc un lookup strict echoue si Agent1 et Agent2 ont tourne des semaines differentes).
+    Retourne le GUID trouve ou chaine vide.
+    """
+    import unicodedata as _ud
+
+    def _norm(s: str) -> str:
+        nfkd = _ud.normalize("NFKD", str(s).lower().strip())
+        return "".join(c for c in nfkd if not _ud.category(c).startswith("M"))
+
+    current_week = datetime.now().isocalendar()[1]
+    ttl = max(1, CACHE_TTL_DAYS // 7)
+
+    for delta in range(0, weeks_back + 1):
+        wk = current_week - delta
+        if wk < 1:
+            wk += 52
+        week_key = str(wk // ttl)
+        raw = f"{_norm(title)[:80]}|{_norm(processus)[:30]}|{_norm(extra)[:20]}|{week_key}"
+        fp = hashlib.sha1(raw.encode("utf-8")).hexdigest()
+        entry = cache.get(fp)
+        if entry and isinstance(entry, dict):
+            guid = entry.get("qalitas_id", "")
+            if guid:
+                return guid
+    return ""
+
+
 def is_already_injected(fingerprint: str, cache: dict = None) -> bool:
     """
     Retourne True si ce fingerprint est deja dans le cache.
@@ -585,6 +618,7 @@ class QalitasWriter:
             message += f"\n\nApercu payload :\n{preview}"
 
         approved = False
+        popup_shown = False
         try:
             import tkinter as tk
             from tkinter import messagebox
@@ -592,6 +626,7 @@ class QalitasWriter:
             root = tk.Tk()
             root.withdraw()
             root.attributes("-topmost", True)
+            popup_shown = True
             approved = messagebox.askyesno(
                 "Validation injection QALITAS",
                 message,
@@ -603,17 +638,27 @@ class QalitasWriter:
                 "Popup de validation indisponible (%s). Fallback console.",
                 exc,
             )
+
+        # Fallback console si le popup n'a pas pu s'afficher
+        if not popup_shown:
             try:
                 import sys
-                if sys.stdin and sys.stdin.isatty():
-                    answer = input(
-                        "\nVALIDATION INJECTION QALITAS REELLE ? "
-                        "taper OUI pour confirmer : "
-                    )
-                    approved = answer.strip().upper() == "OUI"
-                else:
-                    approved = False
-            except Exception:
+                # Toujours proposer la saisie console, meme si stdin n'est pas un tty
+                print(
+                    f"\n{'='*60}\n"
+                    f"VALIDATION INJECTION QALITAS REELLE\n"
+                    f"Operation : {operation}\n"
+                    f"Utilisateur : {getattr(self.client, 'username', '')}\n"
+                    f"{'='*60}"
+                )
+                answer = input("Tapez OUI pour autoriser, NON pour annuler : ")
+                approved = answer.strip().upper() in ("OUI", "O", "YES", "Y")
+            except Exception as e:
+                logger.error(
+                    "Validation humaine impossible (popup ET console echoues : %s). "
+                    "Forcez la validation avec QALITAS_REQUIRE_HUMAN_VALIDATION=false "
+                    "pour les executions non-interactives.", e
+                )
                 approved = False
 
         if approved:
@@ -621,8 +666,15 @@ class QalitasWriter:
             logger.info("Injection QALITAS validee humainement.")
             return True
 
-        self._human_validation_denied = True
-        logger.warning("Injection QALITAS refusee par validation humaine.")
+        # IMPORTANT : ne pas poisonner tout le batch si l'utilisateur annule une seule fois.
+        # On logue l'avertissement mais on NE met PAS _human_validation_denied=True ici,
+        # ce qui permettrait de re-demander pour la prochaine operation majeure.
+        logger.warning(
+            "Injection QALITAS refusee pour l'operation '%s'. "
+            "Les operations suivantes redemanderont confirmation.", operation
+        )
+        # On ne set PAS self._human_validation_denied = True intentionnellement :
+        # cela permettrait d'approuver l'operation suivante sans bloquer tout le batch.
         return False
 
     # -------------------------------------------------------------------------
@@ -1538,11 +1590,27 @@ class QalitasWriter:
                     if nm:
                         server_hidden[nm.group(1)] = vl.group(1) if vl else ""
 
-                csrf    = server_hidden.get("__RequestVerificationToken", "")
+                # Utiliser _extract_csrf_token (robuste, plusieurs regex)
+                csrf    = _extract_csrf_token(init_resp.text)
                 eval_id = server_hidden.get("Id", "")
+
+                # Fallback CSRF : essayer plusieurs pages qui exposent toujours un token
+                if not csrf:
+                    for fallback_page in [
+                        "Actions/Create?nature=0&source=11&sourceId=&selectedIssues=",
+                        "RiskOpportunity/Create?nature=0&source=0&sourceId=&selectedIssues=",
+                        "Account/ChangePassword",
+                    ]:
+                        csrf = self._get_csrf_token(fallback_page)
+                        if csrf:
+                            logger.info("CSRF obtenu via fallback : %s", fallback_page)
+                            break
+                if not csrf:
+                    logger.error("Jeton CSRF introuvable pour EvaluationCreate — abandon")
+                    return False, ""
                 if not eval_id:
                     eval_id = str(_uuid.uuid4())
-                    logger.warning("Id GUID non extrait depuis EvaluationCreate, UUID local genere : %s", eval_id)
+                    logger.info("Id campagne genere localement : %s", eval_id)
             except Exception as exc:
                 logger.error("Echec GET init RiskOpportunityEvaluation/Create : %s", exc)
                 return False, ""
@@ -1557,20 +1625,48 @@ class QalitasWriter:
         sd = start_date or datetime.now()
         ed = end_date or datetime.now()
 
+        # Recuperer les identifiants de site/company depuis l'env ou les valeurs confirmes
+        site_id    = os.environ.get("QALITAS_SITE_ID",    "39d00cd5-32af-c531-d230-e935a535103e")
+        company_id = os.environ.get("QALITAS_COMPANY_ID", "39d00cd5-3251-9b25-bca0-bf46aa71c52b")
+
+        # Determiner la formule et les parametres depuis une campagne existante si possible
+        actual_formula      = formula
+        actual_param_number = str(len(formula.split("*"))) if "*" in formula else "2"
+        param_fields: Dict[str, str] = {}
+        try:
+            existing_evals = self.client.get_evaluations("") if not self.dry_run else []
+            if existing_evals:
+                ref = existing_evals[-1]
+                actual_formula      = ref.get("Formula") or formula
+                pn = len(actual_formula.split("*")) if "*" in actual_formula else 2
+                actual_param_number = str(pn)
+                for i in range(1, pn + 1):
+                    pval = ref.get(f"Parameter{i}") or ""
+                    pdes = ref.get(f"ParameterDes{i}") or ""
+                    if pval:
+                        param_fields[f"Parameter{i}"]    = pval
+                        param_fields[f"ParameterDes{i}"] = pdes
+        except Exception:
+            pass
+
         payload = dict(server_hidden)
         payload.pop("__RequestVerificationToken", None)
         payload.update({
-            "Id":               eval_id,
             "Designation":      designation[:200],
-            "Formula":          formula,
-            "State":            "2",  # Realise
+            "Formula":          actual_formula,
+            "State":            "2",
+            "Nature":           "0",
+            "SiteId":           site_id,
+            "CompanyId":        company_id,
             "StartDate":        sd.strftime(date_fmt),
             "EndDate":          ed.strftime(date_fmt),
             "MinScore":         str(round(min_score, 2)),
             "MaxScore":         str(round(max_score, 2)),
             "RevaluationState": "1",
-            "ParameterNumber":  str(len(formula.split("*"))) if "*" in formula else "2",
+            "ParameterNumber":  actual_param_number,
+            "CRUD":             "1",
         })
+        payload.update(param_fields)
 
         ok, resp = self._post_form(
             "RiskOpportunityEvaluation/Create",
@@ -1693,9 +1789,6 @@ def inject_agent2_results(
     min_idx = NIVEAUX_ORDRE.index(min_niveau) if min_niveau in NIVEAUX_ORDRE else 1
 
     # --- Chargement de la configuration QALITAS (decisions et resultats) ---
-    # Ces tables de reference sont necessaires pour renseigner DecisionEvalRiskId,
-    # ResultEvalId et ResultEvalPrimeId avec les UUIDs reels de l'instance QALITAS.
-    # En dry_run, le client est quand meme utilise pour charger la config (lecture seule).
     decisions_cfg: List[Dict] = []
     results_cfg:   List[Dict] = []
     try:
@@ -1712,6 +1805,52 @@ def inject_agent2_results(
             exc
         )
 
+    # -----------------------------------------------------------------------
+    # PRE-CHARGEMENT : mapping risk_opp_id -> (eval_id, appreciation_row)
+    # Parcourt TOUTES les campagnes existantes pour trouver l'appreciation row
+    # de chaque risque (avec son Id UUID obligatoire pour EditRiskAppreciation).
+    # Sans ce mapping, les risques dont l'eval_id est absent obtiennent Id=""
+    # et QALITAS repond "false|Impossible de modifier cet enregistrement!".
+    # -----------------------------------------------------------------------
+    _risk_to_eval_row: Dict[str, tuple] = {}  # risk_opp_id -> (eval_id, row_dict)
+    _latest_active_eval_id: str = ""          # derniere campagne active (fallback)
+    # Le pre-chargement est lecture seule : on le fait aussi en dry_run
+    # pour que la simulation affiche les bons row_id (diagnostique fiable).
+    try:
+        all_evals = writer.client.get_evaluations("")
+        # Trier : campagnes les plus recentes en premier (State=1 En cours prioritaire)
+        active_evals = sorted(
+            all_evals,
+            key=lambda e: (e.get("State", 0) == 1, e.get("StartDate", "") or ""),
+            reverse=True,
+        )
+        if active_evals:
+            _latest_active_eval_id = active_evals[0].get("Id", "")
+
+        for ev in active_evals:
+            ev_id = ev.get("Id", "")
+            if not ev_id:
+                continue
+            try:
+                rows = writer.client.get_risk_appreciation(ev_id)
+                for row in rows:
+                    r_id   = row.get("RiskOpportunityId", "")
+                    row_id = row.get("Id", "")
+                    # Conserver uniquement la premiere occurrence (campagne la plus recente)
+                    if r_id and row_id and r_id not in _risk_to_eval_row:
+                        _risk_to_eval_row[r_id] = (ev_id, row)
+            except Exception:
+                pass
+
+        logger.info(
+            "[A2] Mapping appreciation pre-charge : %d risques indexes dans %d campagnes | "
+            "campagne active : %s",
+            len(_risk_to_eval_row), len(all_evals),
+            _latest_active_eval_id[:12] if _latest_active_eval_id else "aucune"
+        )
+    except Exception as exc:
+        logger.warning("[A2] Pre-chargement mapping campagnes echoue : %s", exc)
+
     stats = {
         "processed":             0,
         "appreciations_updated": 0,
@@ -1719,31 +1858,75 @@ def inject_agent2_results(
         "skipped_no_id":         0,
         "skipped_cache":         0,
         "errors":                0,
+        "hist_eval_created":     0,
+        "hist_eval_errors":      0,
     }
+
+    # Collecte des risques evalues pour alimenter l'historique evaluation (campagne Agent2)
+    _a2_evaluated_risks: List[Dict] = []
 
     # Charger le cache une seule fois pour tout le batch
     _cache = _load_cache()
 
     for risque in risques:
-        raw         = risque.get("_raw", {})
-        eval_id     = raw.get("RiskOpportunityEvaluationId") or raw.get("EvaluationId") or risque.get("EvaluationId", "")
-        risk_opp_id = raw.get("RiskOpportunityId") or risque.get("RiskOpportunityId", "")
+        raw         = risque.get("_raw", {}) if isinstance(risque.get("_raw"), dict) else {}
+        # Chercher les GUIDs : champs directs (nouveaux) > _raw > vide
+        eval_id = (
+            risque.get("RiskOpportunityEvaluationId") or risque.get("EvaluationId") or
+            raw.get("RiskOpportunityEvaluationId") or raw.get("EvaluationId") or ""
+        )
+        risk_opp_id = (
+            risque.get("RiskOpportunityId") or
+            raw.get("RiskOpportunityId") or raw.get("Id") or ""
+        )
 
-        # Fallback : si pas d'IDs QALITAS dans _raw, chercher dans le cache d'injection Agent1
-        # Les R&O injectes par Agent1 ont leur GUID stocke dans injection_cache.json
+        # Fallback 1 : le _raw Qualitas utilise "Id" (pas "RiskOpportunityId") pour les
+        # risques lus via l'API — verifier les deux cles.
+        if not risk_opp_id:
+            risk_opp_id = raw.get("Id", "")
+
+        # Fallback 2 : chercher dans le cache Agent1 en testant les fingerprints
+        # des 8 dernieres semaines (le fingerprint change chaque semaine).
         if not risk_opp_id:
             intitule_a2  = risque.get("risque", risque.get("Intitule", risque.get("code", "")))
             processus_a2 = risque.get("processus", "")
-            fp_risk = _fingerprint(intitule_a2, processus_a2, "agent1-risk")
-            fp_opp  = _fingerprint(intitule_a2, processus_a2, "agent1-opp")
-            cache_entry = _cache.get(fp_risk) or _cache.get(fp_opp)
-            if cache_entry and isinstance(cache_entry, dict):
-                risk_opp_id = cache_entry.get("qalitas_id", "")
+            risk_opp_id  = (
+                _find_guid_in_cache(intitule_a2, processus_a2, "agent1-risk", _cache)
+                or _find_guid_in_cache(intitule_a2, processus_a2, "agent1-opp",  _cache)
+            )
+            if risk_opp_id:
+                logger.debug(
+                    "[A2-lookup] GUID trouve via cache multi-semaines : %s -> %s",
+                    intitule_a2[:60], risk_opp_id[:12]
+                )
 
-        if not eval_id or not risk_opp_id:
-            logger.debug(
-                "Risque sans EvaluationId/RiskOpportunityId (apres lookup cache) : %s",
-                risque.get("code", risque.get("Intitule", "?"))
+        if not risk_opp_id:
+            # Fallback 3 : interroger l'API QALITAS directement pour trouver le GUID
+            # par correspondance sur le code ou l'intitule (cas Excel sans GUID)
+            try:
+                intitule_search = risque.get("risque", risque.get("Intitule", risque.get("code", "")))
+                code_search     = risque.get("code", "")
+                all_risks_api   = writer.client.get_risks()
+                for r in all_risks_api:
+                    api_code = str(r.get("Code", "")).strip()
+                    api_name = str(r.get("Designation", r.get("Name", ""))).strip().lower()
+                    if (code_search and api_code == code_search) or \
+                       (intitule_search and api_name == intitule_search.lower().strip()):
+                        risk_opp_id = r.get("Id", r.get("RiskOpportunityId", ""))
+                        if risk_opp_id:
+                            logger.info(
+                                "[A2-lookup] GUID trouve via API directe pour '%s' : %s",
+                                intitule_search[:60], risk_opp_id[:12]
+                            )
+                            break
+            except Exception as _e:
+                logger.debug("[A2-lookup] Fallback API echoue : %s", _e)
+
+        if not risk_opp_id:
+            logger.warning(
+                "Risque sans RiskOpportunityId (skipped) : %s — "
+                "verifier que les donnees viennent de l'API QALITAS et non de l'Excel seul.",
+                risque.get("code", risque.get("risque", risque.get("Intitule", "?")))
             )
             stats["skipped_no_id"] += 1
             continue
@@ -1790,26 +1973,66 @@ def inject_agent2_results(
         intitule = risque.get("code", "") + " - " + risque.get("risque", risque.get("Intitule", ""))
         comment  = f"{decision_label}. {recommandation[:400]}" if recommandation else decision_label
 
-        # --- 1. Mise a jour de l'appreciation residuelle ---
-        ok, _ = writer.save_risk_appreciation(
-            evaluation_id=eval_id,
-            risk_opportunity_id=risk_opp_id,
-            f_prime=f_prime,
-            g_prime=g_prime,
-            score_prime=rpn_prime,
-            decision_eval_risk_id=decision_eval_risk_id,
-            result_eval_id=result_eval_id,
-            result_eval_prime_id=result_eval_prime_id,
-            decision_comments=comment,
-            f_brut=f_brut,
-            g_brut=g_brut,
-            score_brut=rpn_brut,
-            indice_maitrise=indice_maitrise,
-        )
-        if ok:
-            stats["appreciations_updated"] += 1
-        else:
-            stats["errors"] += 1
+        # -----------------------------------------------------------------------
+        # Resoudre eval_id et appreciation_row_id via le mapping pre-charge
+        # Priorite : mapping (plus precis, contient le row Id) > _raw > latest active
+        # -----------------------------------------------------------------------
+        appreciation_row_id_pre: str = ""
+        mapped_row_pre: Dict = {}
+
+        if risk_opp_id in _risk_to_eval_row:
+            mapped_eval_id_pre, mapped_row_pre = _risk_to_eval_row[risk_opp_id]
+            if not eval_id:
+                eval_id = mapped_eval_id_pre
+                logger.debug("[A2] eval_id resolu via mapping : %s pour risque %s",
+                             eval_id[:12], risk_opp_id[:12])
+            appreciation_row_id_pre = mapped_row_pre.get("Id", "")
+        elif not eval_id and _latest_active_eval_id:
+            eval_id = _latest_active_eval_id
+            logger.debug("[A2] eval_id fallback campagne active : %s", eval_id[:12])
+
+        # Collecter pour l'historique evaluation (nouvelle campagne Agent2)
+        _a2_evaluated_risks.append({
+            "risk_opp_id":           risk_opp_id,
+            "eval_id":               eval_id,
+            "appreciation_row_id":   appreciation_row_id_pre,
+            "f_prime":               f_prime,
+            "g_prime":               g_prime,
+            "rpn_prime":             rpn_prime,
+            "f_brut":                f_brut,
+            "g_brut":                g_brut,
+            "rpn_brut":              rpn_brut,
+            "indice_maitrise":       indice_maitrise,
+            "decision_id":           decision_eval_risk_id,
+            "result_id":             result_eval_id,
+            "result_prime_id":       result_eval_prime_id,
+            "comment":               comment,
+            "intitule":              intitule,
+            "nature":                int(raw.get("Nature", 0) or 0),
+            "mapped_row":            mapped_row_pre,
+        })
+
+        # --- 1. Mise a jour de l'appreciation dans la campagne existante ---
+        if eval_id:
+            ok, _ = writer.save_risk_appreciation(
+                evaluation_id=eval_id,
+                risk_opportunity_id=risk_opp_id,
+                f_prime=f_prime,
+                g_prime=g_prime,
+                score_prime=rpn_prime,
+                decision_eval_risk_id=decision_eval_risk_id,
+                result_eval_id=result_eval_id,
+                result_eval_prime_id=result_eval_prime_id,
+                decision_comments=comment,
+                f_brut=f_brut,
+                g_brut=g_brut,
+                score_brut=rpn_brut,
+                indice_maitrise=indice_maitrise,
+            )
+            if ok:
+                stats["appreciations_updated"] += 1
+            else:
+                stats["errors"] += 1
 
         # --- 2. Creation d'action corrective si niveau suffisant ---
         niveau_idx = NIVEAUX_ORDRE.index(niveau) if niveau in NIVEAUX_ORDRE else 0
@@ -1883,11 +2106,82 @@ def inject_agent2_results(
     if not writer.dry_run:
         _save_cache(_cache)
 
+    # -----------------------------------------------------------------------
+    # HISTORIQUE D'EVALUATION : mise a jour des appreciations dans les
+    # campagnes EXISTANTES (EditRiskAppreciation avec le bon row Id).
+    #
+    # IMPORTANT : on N'utilise PAS une nouvelle campagne vide car QALITAS
+    # rejette EditRiskAppreciation avec Id="" ("false|Impossible de modifier").
+    # On utilise le eval_id et l'appreciation_row_id pre-charges depuis le
+    # mapping construit au debut de cette fonction.
+    # -----------------------------------------------------------------------
+    if _a2_evaluated_risks and not writer.dry_run:
+        for item in _a2_evaluated_risks:
+            item_eval_id = item.get("eval_id", "")
+            item_row_id  = item.get("appreciation_row_id", "")
+
+            if not item_eval_id:
+                logger.warning(
+                    "[Hist-A2] Pas de campagne connue pour '%s' — risque non inclus dans l'historique.",
+                    item["intitule"][:60]
+                )
+                stats["hist_eval_errors"] += 1
+                continue
+
+            if not item_row_id:
+                logger.warning(
+                    "[Hist-A2] appreciation_row_id absent pour '%s' dans campagne %s "
+                    "— EditRiskAppreciation impossible (QALITAS exige le Id de la ligne).",
+                    item["intitule"][:60], item_eval_id[:12]
+                )
+                stats["hist_eval_errors"] += 1
+                continue
+
+            ok_appr, resp_appr = writer.save_risk_appreciation(
+                evaluation_id=item_eval_id,
+                risk_opportunity_id=item["risk_opp_id"],
+                f_prime=item["f_prime"],
+                g_prime=item["g_prime"],
+                score_prime=item["rpn_prime"],
+                f_brut=item["f_brut"],
+                g_brut=item["g_brut"],
+                score_brut=item["rpn_brut"],
+                decision_eval_risk_id=item["decision_id"],
+                result_eval_id=item["result_id"],
+                result_eval_prime_id=item["result_prime_id"],
+                decision_comments=item["comment"],
+                indice_maitrise=item["indice_maitrise"],
+            )
+            if ok_appr:
+                stats["hist_eval_created"] += 1
+                logger.info(
+                    "[Hist-A2] OK : %s (eval=%s F'=%.2f G'=%.2f RPN'=%.1f)",
+                    item["intitule"][:60], item_eval_id[:12],
+                    item["f_prime"], item["g_prime"], item["rpn_prime"],
+                )
+            else:
+                stats["hist_eval_errors"] += 1
+                logger.warning(
+                    "[Hist-A2] Echec EditRiskAppreciation pour '%s' dans campagne %s "
+                    "(row_id=%s) — reponse : %s",
+                    item["intitule"][:60], item_eval_id[:12],
+                    item_row_id[:12], str(resp_appr)[:120]
+                )
+
+    elif _a2_evaluated_risks and writer.dry_run:
+        logger.info(
+            "[DRY-RUN] Historique Agent2 simule : %d risques seraient mis a jour "
+            "(dont %d avec row_id connu)",
+            len(_a2_evaluated_risks),
+            sum(1 for i in _a2_evaluated_risks if i.get("appreciation_row_id"))
+        )
+
     logger.info(
-        "Injection Agent2 : %d traites | %d appreciations maj | %d actions creees | "
-        "%d cache | %d sans ID | %d erreurs",
+        "Injection Agent2 : %d traites | %d appr. maj | %d actions | "
+        "%d hist.eval OK | %d cache | %d sans ID | %d erreurs",
         stats["processed"], stats["appreciations_updated"], stats["actions_created"],
-        stats["skipped_cache"], stats["skipped_no_id"], stats["errors"]
+        stats["hist_eval_created"], stats["skipped_cache"],
+        stats["skipped_no_id"], stats["errors"],
     )
     return stats
 

@@ -62,7 +62,7 @@ LLM_CONFIG = {
 }
 
 # Niveaux de risque residuel pour lesquels on appelle le LLM
-LLM_GRAVITY_FILTER = {"critique", "eleve"}
+LLM_GRAVITY_FILTER = {"critique"}
 
 # Niveaux d'opportunite pour lesquels on appelle le LLM
 LLM_OPPORTUNITY_FILTER = {"fort", "moyen"}

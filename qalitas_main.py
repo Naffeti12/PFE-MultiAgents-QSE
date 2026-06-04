@@ -29,6 +29,16 @@ import shutil
 from collections import Counter
 from datetime import datetime
 
+# Charger les variables d'environnement depuis .env
+try:
+    from dotenv import load_dotenv
+    load_dotenv(
+        dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"),
+        override=False,
+    )
+except ImportError:
+    pass
+
 from loaders.load_excel_data import load_all_context
 from loaders.load_dashboard_pdf import load_dashboard_text
 from loaders.qalitas_api_client import load_all_context_hybrid, QalitasClient

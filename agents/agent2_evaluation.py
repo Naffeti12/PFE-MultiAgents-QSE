@@ -615,8 +615,22 @@ def evaluate_risk(
         "resultat_existant": str(entry.get("Résultat Eval. Risq & Opp", "")).strip(),
         "resultat_residuel_existant": str(entry.get("Résultat Eval. Risq & Opp '", "")).strip(),
 
-        # UUIDs QALITAS : preserve la cle _raw attachee avant evaluation
-        # (contient RiskOpportunityId + RiskOpportunityEvaluationId)
+        # UUIDs QALITAS : preserves en champs directs ET dans _raw
+        # Priorite : champ direct > _raw > chaine vide
+        "RiskOpportunityId": (
+            entry.get("RiskOpportunityId") or
+            entry.get("_raw", {}).get("RiskOpportunityId", "")
+        ),
+        "RiskOpportunityEvaluationId": (
+            entry.get("RiskOpportunityEvaluationId") or
+            entry.get("EvaluationId") or
+            entry.get("_raw", {}).get("RiskOpportunityEvaluationId", "")
+        ),
+        "EvaluationId": (
+            entry.get("RiskOpportunityEvaluationId") or
+            entry.get("EvaluationId") or
+            entry.get("_raw", {}).get("RiskOpportunityEvaluationId", "")
+        ),
         "_raw": entry.get("_raw", {}),
     }
 

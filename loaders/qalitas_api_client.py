@@ -34,7 +34,22 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import requests
+import urllib3
 from requests import Session
+
+# Charger automatiquement le fichier .env (QALITAS_BASE_URL, USERNAME, PASSWORD)
+# Sans cette ligne, os.environ.get() utilise les variables systeme uniquement.
+try:
+    from dotenv import load_dotenv as _load_dotenv
+    _load_dotenv(
+        dotenv_path=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"),
+        override=False,  # ne pas ecraser les variables deja definies dans l'env systeme
+    )
+except ImportError:
+    pass  # python-dotenv non installe : les variables doivent etre definies manuellement
+
+# Supprimer les warnings SSL : le serveur Azure utilise un certificat auto-signe.
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger("qalitas_api_client")
 
@@ -53,7 +68,9 @@ DEFAULT_COMPANY_ID = os.environ.get("QALITAS_COMPANY_ID", "39d00cd5-3251-9b25-bc
 DEFAULT_SITE_ID    = os.environ.get("QALITAS_SITE_ID",    "bbb2b648-82bf-471d-bbf4-6ab8e68b6d0b")  # Paris
 
 # Timeout HTTP en secondes
-REQUEST_TIMEOUT = 30
+# Augmente a 60s : le serveur Azure repond en <1s mais urllib3 sur certains
+# reseaux Windows (proxy, antivirus SSL) peut bloquer la negociation TLS.
+REQUEST_TIMEOUT = 60
 
 # Date de debut par defaut pour les requetes avec filtre date (12 derniers mois)
 DEFAULT_MONTHS_BACK = 12
@@ -96,8 +113,11 @@ class QalitasClient:
         self.site_id = site_id
         self.timeout = timeout
         self._session: Session = requests.Session()
+        # trust_env=False : ignore les variables proxy Windows (HTTP_PROXY, HTTPS_PROXY)
+        # qui peuvent bloquer ou ralentir la connexion au serveur Azure.
+        self._session.trust_env = False
         self._session.headers.update({
-            "User-Agent": "Mozilla/5.0 (QALITAS-Agent/1.0)",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             "Accept": "application/json, text/javascript, */*; q=0.01",
             "X-Requested-With": "XMLHttpRequest",
         })
@@ -563,6 +583,10 @@ def normalize_risk_mapping(api_row: Dict) -> Dict:
         "ScoreMax":      api_row.get("EvaluationMaxScore"),
         "DateDebut":     api_row.get("EvaluationStartDate"),
         "DateFin":       api_row.get("EvaluationEndDate"),
+        # GUIDs critiques en champs de premier niveau (pour inject_agent2_results)
+        "RiskOpportunityId":           api_row.get("RiskOpportunityId", ""),
+        "RiskOpportunityEvaluationId": api_row.get("RiskOpportunityEvaluationId", ""),
+        "EvaluationId":                api_row.get("RiskOpportunityEvaluationId", ""),
         "_source":       "qalitas_api",
         "_raw":          api_row,
     }
